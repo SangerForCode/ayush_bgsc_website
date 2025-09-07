@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sports League Live Feed</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .event {
+        background: #f0f0f0;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      .live-update {
+        background: #e8f5e8;
+        border-left: 4px solid #4caf50;
+      }
+      .score-event {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .connected {
+        background: #e8f5e8;
+        color: #2e7d32;
+      }
+      .disconnected {
+        background: #ffebee;
+        color: #c62828;
+      }
+      button {
+        background: #2196f3;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #1976d2;
+      }
+      #events {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sports League Live Feed Test</h1>
+
+    <div id="connection-status" class="status disconnected">Disconnected</div>
+
+    <div>
+      <button onclick="connect()">Connect</button>
+      <button onclick="disconnect()">Disconnect</button>
+      <button onclick="joinGame()">Join Game 1</button>
+      <button onclick="leaveGame()">Leave Game 1</button>
+      <button onclick="getLiveStatus()">Get Live Status</button>
+      <button onclick="clearEvents()">Clear Events</button>
+    </div>
+
+    <h2>Live Events</h2>
+    <div id="events"></div>
+
+    <script>
+      let socket = null;
+      let isConnected = false;
+
+      function connect() {
+        if (socket) {
+          socket.disconnect();
+        }
+
+        socket = io("http://localhost:3000");
+
+        socket.on("connect", () => {
+          isConnected = true;
+          updateConnectionStatus("Connected", "connected");
+          addEvent("System", "Connected to server", "live-update");
+        });
+
+        socket.on("disconnect", (reason) => {
+          isConnected = false;
+          updateConnectionStatus("Disconnected: " + reason, "disconnected");
+          addEvent(
+            "System",
+            "Disconnected from server: " + reason,
+            "disconnected"
+          );
+        });
+
+        socket.on("connected", (data) => {
+          addEvent("Server", data.message, "live-update");
+        });
+
+        socket.on("live_update", (data) => {
+          addEvent("Live Update", JSON.stringify(data, null, 2), "live-update");
+        });
+
+        socket.on("game_update", (data) => {
+          addEvent("Game Update", JSON.stringify(data, null, 2), "live-update");
+        });
+
+        socket.on("score_event", (data) => {
+          addEvent("Score Event", JSON.stringify(data, null, 2), "score-event");
+        });
+
+        socket.on("live_status", (data) => {
+          addEvent("Live Status", JSON.stringify(data, null, 2), "live-update");
+        });
+
+        socket.on("error", (error) => {
+          addEvent("Error", error.toString(), "disconnected");
+        });
+      }
+
+      function disconnect() {
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+        }
+      }
+
+      function joinGame() {
+        if (socket && isConnected) {
+          socket.emit("join_game", 1);
+          addEvent("Client", "Joined game 1", "live-update");
+        } else {
+          alert("Not connected to server");
+        }
+      }
+
+      function leaveGame() {
+        if (socket && isConnected) {
+          socket.emit("leave_game", 1);
+          addEvent("Client", "Left game 1", "live-update");
+        } else {
+          alert("Not connected to server");
+        }
+      }
+
+      function getLiveStatus() {
+        if (socket && isConnected) {
+          socket.emit("get_live_status");
+          addEvent("Client", "Requested live status", "live-update");
+        } else {
+          alert("Not connected to server");
+        }
+      }
+
+      function updateConnectionStatus(message, className) {
+        const statusEl = document.getElementById("connection-status");
+        statusEl.textContent = message;
+        statusEl.className = "status " + className;
+      }
+
+      function addEvent(source, message, className = "") {
+        const eventsEl = document.getElementById("events");
+        const eventEl = document.createElement("div");
+        eventEl.className = "event " + className;
+
+        const timestamp = new Date().toLocaleTimeString();
+        eventEl.innerHTML = `
+                <strong>[${timestamp}] ${source}:</strong><br>
+                <pre>${message}</pre>
+            `;
+
+        eventsEl.insertBefore(eventEl, eventsEl.firstChild);
+
+        // Keep only last 50 events
+        while (eventsEl.children.length > 50) {
+          eventsEl.removeChild(eventsEl.lastChild);
+        }
+      }
+
+      function clearEvents() {
+        document.getElementById("events").innerHTML = "";
+      }
+
+      // Auto-connect on page load
+      window.onload = function () {
+        connect();
+      };
+    </script>
+  </body>
+</html>

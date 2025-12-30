@@ -16,7 +16,7 @@ See the `README.md` files within the `frontend` and `backend` directories for sp
 
 ## System Diagram
 ```mermaid
-graph TD
+flowchart TD
     subgraph "Client"
         A[User's Browser]
     end
